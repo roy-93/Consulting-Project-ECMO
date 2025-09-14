@@ -1,0 +1,1349 @@
+---
+title: "Final Report: Project ECMO"
+author: "Edited by: Aninda Roy, Supervised by: Dr. Aniko Szabo"
+date: "`r Sys.Date()`"
+fontsize: 60pt
+output: html_document
+ 
+---
+
+
+
+```{r,warning = FALSE, echo=FALSE, comment=FALSE, include=FALSE}
+# Dataset
+data_ecmo <- read.csv(file = "NorwoodECMO Data_new2.csv", header = TRUE)
+data_ecmo <- data_ecmo[-61,] # Delete the obs#61 because of missing value
+```
+
+
+```{r, echo=FALSE, comment= FALSE, include=FALSE}
+# Changing the variable label
+
+data_ecmo$ID <- as.factor(data_ecmo$ID)
+data_ecmo$Sex <- as.factor(data_ecmo$Sex)
+data_ecmo$OpDate <- as.Date(data_ecmo$OpDate, format="%m/%d/%Y")
+data_ecmo$DOD <- as.Date(data_ecmo$DOD, format="%m/%d/%Y")
+data_ecmo$Dx <- as.factor(data_ecmo$Dx)
+data_ecmo$SurgShuntT <- as.factor(data_ecmo$SurgShuntT)  
+data_ecmo$ECA <- as.factor(data_ecmo$ECA)
+data_ecmo$Hybrid <- as.factor(data_ecmo$Hybrid)
+data_ecmo$MechVent <- as.factor(data_ecmo$MechVent)
+data_ecmo$TR <- as.factor(data_ecmo$TR)
+data_ecmo$VentDys <- as.factor(data_ecmo$VentDys)
+data_ecmo$ECMO48 <- as.factor(data_ecmo$ECMO48)
+data_ecmo$ECMO <- as.factor(data_ecmo$ECMO)
+data_ecmo$SurvECMO <- as.factor(data_ecmo$SurvECMO)
+data_ecmo$SurvSt2 <- as.factor(data_ecmo$SurvSt2)
+data_ecmo$TFHS <- as.factor(data_ecmo$TFHS)
+```
+
+```{r, echo=FALSE}
+## Creating Variable for the CPBminusAoCT
+data_ecmo$CPBminusAoCT <- data_ecmo$SurgCPB - data_ecmo$SurgAoCT 
+```
+
+
+```{r, warning=FALSE, echo=FALSE, include=FALSE}
+# Data Summary
+str(data_ecmo)
+```
+
+# **Data Description and Methods:**
+
+Here, the data consists of 28 variables and a total of 129 observations (N=129).There are five binary outcome variables (ECMO48, ECMO, SurvECMO, SurvSt2, TFHS) and one continuous outcome (DTE). The dataset also contains the range of dates when the Norwood operation happened, which is between 01-11-2007 and 05-16-2023. In the descriptive statistics section, Tables 1–5 contain the mean, standard deviation (SD), and range (min–max) of continuous variables stratified by each binary outcome, which refers to the distribution of the data within each category. In addition, to see the significance of different continuous variables in our outcome, we applied the two-sample t-test and Wilcoxon rank sum test (non-parametric), and for the categorical variables, we applied the Fisher exact test and Chi-square test. In each figure, we have a boxplot to see the distribution of Aortic clamp time, Bypass time, Aorta diameter, and total circulatory arrest time on different categories of outcomes (ECMO 48). We apply Multiple Logistic Regression to model the significance of the predictors on different outcomes since our outcomes are binary. For selecting the variables, we use the stepwise variable selection method, where the Akaike Information Criterion (AIC) is used as a selection criterion.
+
+
+# **1 Descriptive Statistics**
+
+## 1.1 Table 1: Summary Statistics Stratified by response(ECMO48)
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE}
+
+#library(devtools)
+#install.packages("gtsummary")
+#remotes::install_github("ddsjoberg/gtsummary")
+library("tidyverse")
+library("dplyr")
+library("gtsummary")
+
+
+
+data_ecmo %>% select("Age", "Wgt", "Lgt", "SurgAoCT", "SurgAAoD", "SurgCircArrTot",
+                   "SurgCPB", "SurgShuntS", "Cre", "ECMO48", "Sex", "Dx","CPBminusAoCT",
+                   "SurgShuntT" ,"ECA", "Hybrid","MechVent", "TR", "VentDys") %>%
+
+  mutate(ECMO48 = factor(ECMO48, labels = c("No", "Yes")),
+         Sex = factor(Sex, labels = c("Male", "Female")),
+         Dx = factor(Dx, labels = c("Aortic and mitral atresia", "Aortic atresia and mitral stenosis",
+                                    "Aortic stenosis and mitral atresia", "Aortic and mitral stenosis",
+                                    "other")),
+         SurgShuntT = factor(SurgShuntT, labels = c("Sano", "BT")),
+         ECA = factor(ECA, labels = c("No", "Yes")),
+         Hybrid = factor(Hybrid, labels = c("No", "Yes")),
+         MechVent = factor(MechVent, labels = c("No", "Yes")),
+         TR = factor(TR, labels = c("No", "Yes")),
+         VentDys = factor(VentDys, labels = c("No", "Yes"))) %>%
+
+  tbl_summary(by = ECMO48,
+              label = list(Wgt ~ "Weight",
+                           Lgt ~ "Length",
+                           SurgAoCT ~ "Aortic Clamp time",
+                           SurgAAoD ~ "Aorta Diameter",
+                           SurgCircArrTot ~ "Circulatory Arrest time",
+                           SurgCPB ~ "Bypass time",
+                           SurgShuntS ~ "Shunt Size",
+                           Cre ~ "Preop creatinine",
+                           #ECMO48 ~ "ECMO within 48 hours",
+                           Dx ~ "HLHS type",
+                           SurgShuntT ~ "Shunt type",
+                           ECA ~ "Extra cardiac anatomy",
+                           MechVent ~ "Mechanically Ventilated",
+                           TR ~ "Tricuspid regurg",
+                           VentDys ~ "Ventricular dysfunction"),
+              type = list(Age ~ "continuous2",
+                          Wgt ~ "continuous2",
+                          Lgt ~ "continuous2",
+                          SurgAoCT ~ "continuous2",
+                          SurgAAoD ~ "continuous2",
+                          SurgCircArrTot ~ "continuous2",
+                          SurgCPB ~ "continuous2",
+                          CPBminusAoCT ~ "continuous2",
+                          SurgShuntS ~ "categorical",
+                          Cre ~ "continuous2",
+                          Sex ~ "categorical",
+                          Dx ~ "categorical",
+                          SurgShuntT ~ "categorical",
+                          ECA ~ "categorical",
+                          Hybrid ~ "categorical",
+                          MechVent ~ "categorical",
+                          TR ~ "categorical",
+                          VentDys ~ "categorical") ,
+              statistic = list(all_continuous() ~ c("{median} ({p25} - {p75})","{mean} ({sd})", "{min}, {max}"),
+                               all_categorical() ~ "{n} ({p}%)")) %>%
+  add_p(test = list(Age ~ "t.test",
+                    Wgt ~ "t.test",
+                    Lgt ~ "t.test",
+                    SurgAoCT ~ "wilcox.test",
+                    SurgAAoD ~ "t.test",
+                    SurgCircArrTot ~ "wilcox.test",
+                    SurgCPB ~ "wilcox.test",
+                    SurgShuntS ~ "fisher.test",
+                    Cre ~ "t.test",
+                    Sex ~ "fisher.test",
+                    Dx ~ "fisher.test",
+                    SurgShuntT ~ "chisq.test.no.correct",
+                    ECA ~ "chisq.test.no.correct",
+                    Hybrid ~ "fisher.test",
+                    MechVent ~ "chisq.test.no.correct",
+                    TR ~ "fisher.test",
+                    VentDys ~ "fisher.test"),
+        pvalue_fun = ~style_pvalue(., digits = 2)) %>% add_overall() %>%
+   separate_p_footnotes() %>%
+  bold_p() %>% 
+  add_stat_label() %>%
+  bold_labels() %>%
+  modify_header(list(label ~ "**Variable**", all_stat_cols() ~ "**{level}**, N = {n}")) %>%
+  modify_spanning_header(all_stat_cols() ~ "**ECMO within 48 hours**") %>%
+  as_gt() %>%
+  gt::tab_header(
+    title = gt::md("**Table 1:Summary Statistics Stratified by response(ECMO48)**")
+  ) %>%
+  gt::tab_source_note("Data updated July 27, 2023")
+```
+
+
+
+## 1.2 Table 2: Summary Statistics Stratified by response(ECMO)
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE}
+
+data_ecmo %>% select("Age", "Wgt", "Lgt", "SurgAoCT", "SurgAAoD", "SurgCircArrTot",
+                     "SurgCPB", "CPBminusAoCT", "SurgShuntS", "Cre", "ECMO", "Sex", "Dx", 
+                     "SurgShuntT" ,"ECA",
+                     "Hybrid","MechVent", "TR", "VentDys" ) %>%
+
+    mutate(ECMO = factor(ECMO, labels = c("No", "Yes")),
+         Sex = factor(Sex, labels = c("Male", "Female")),
+         Dx = factor(Dx, labels = c("Aortic and mitral atresia", "Aortic atresia and mitral stenosis",
+                                    "Aortic stenosis and mitral atresia", "Aortic and mitral stenosis",
+                                    "other")),
+         SurgShuntT = factor(SurgShuntT, labels = c("Sano", "BT")),
+         ECA = factor(ECA, labels = c("No", "Yes")),
+         Hybrid = factor(Hybrid, labels = c("No", "Yes")),
+         MechVent = factor(MechVent, labels = c("No", "Yes")),
+         TR = factor(TR, labels = c("No", "Yes")),
+         VentDys = factor(VentDys, labels = c("No", "Yes"))) %>%
+
+  tbl_summary(by = ECMO,
+              label = list(Wgt ~ "Weight",
+                           Lgt ~ "Length",
+                           SurgAoCT ~ "Aortic Clamp time",
+                           SurgAAoD ~ "Aorta Diameter",
+                           SurgCircArrTot ~ "Circulatory Arrest time",
+                           SurgCPB ~ "Bypass time",
+                           SurgShuntS ~ "Shunt Size",
+                           Cre ~ "Preop creatinine",
+                           #ECMO ~ "ECMO Post Norwood",
+                           Dx ~ "HLHS type",
+                           SurgShuntT ~ "Shunt type",
+                           ECA ~ "Extra cardiac anatomy",
+                           MechVent ~ "Mechanically Ventilated",
+                           TR ~ "Tricuspid regurg",
+                           VentDys ~ "Ventricular dysfunction"),
+              type = list(Age ~ "continuous2",
+                          Wgt ~ "continuous2",
+                          Lgt ~ "continuous2",
+                          SurgAoCT ~ "continuous2",
+                          SurgAAoD ~ "continuous2",
+                          SurgCircArrTot ~ "continuous2",
+                          SurgCPB ~ "continuous2",
+                          CPBminusAoCT ~ "continuous2",
+                          SurgShuntS ~ "categorical",
+                          Cre ~ "continuous2",
+                          Sex ~ "categorical",
+                          Dx ~ "categorical",
+                          SurgShuntT ~ "categorical",
+                          ECA ~ "categorical",
+                          Hybrid ~ "categorical",
+                          MechVent ~ "categorical",
+                          TR ~ "categorical",
+                          VentDys ~ "categorical") ,
+              statistic = list(all_continuous() ~ c("{median} ({p25} - {p75})", "{mean} ({sd})", "{min}, {max}"),
+                               all_categorical() ~ "{n} ({p}%)")) %>%
+  add_p(test = list(Age ~ "t.test",
+                    Wgt ~ "t.test",
+                    Lgt ~ "t.test",
+                    SurgAoCT ~ "wilcox.test",
+                    SurgAAoD ~ "t.test",
+                    SurgCircArrTot ~ "wilcox.test",
+                    SurgCPB ~ "wilcox.test",
+                    SurgShuntS ~ "fisher.test",
+                    Cre ~ "t.test",
+                    Sex ~ "fisher.test",
+                    Dx ~ "fisher.test",
+                    SurgShuntT ~ "chisq.test.no.correct",
+                    ECA ~ "chisq.test.no.correct",
+                    Hybrid ~ "fisher.test",
+                    MechVent ~ "chisq.test.no.correct",
+                    TR ~ "fisher.test",
+                    VentDys ~ "fisher.test"),
+        pvalue_fun = ~style_pvalue(., digits = 2)) %>% add_overall() %>%
+  separate_p_footnotes() %>%
+  bold_p() %>% 
+  add_stat_label() %>%
+  bold_labels() %>%
+  modify_header(list(label ~ "**Variable**", all_stat_cols() ~ "**{level}**, N = {n}")) %>%
+  modify_spanning_header(all_stat_cols() ~ "**ECMO Post Norwood**") %>%
+  as_gt() %>%
+  gt::tab_header(
+    title = gt::md("**Table 2:Summary Statistics stratified by response(ECMO)**")
+  ) %>%
+  gt::tab_source_note("Data updated July 27, 2023")
+```
+
+
+## 1.3 Table 3: Summary Statistics Stratified by response(SurvECMO)
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE}
+
+
+data_ecmo %>% select("Age", "Wgt", "Lgt", "SurgAoCT", "SurgAAoD", "SurgCircArrTot",
+                     "SurgCPB", "CPBminusAoCT", "SurgShuntS", "Cre", "SurvECMO", "Sex", "Dx", 
+                     "SurgShuntT" ,"ECA",
+                     "Hybrid","MechVent", "TR", "VentDys" ) %>%
+
+   mutate(SurvECMO = factor(SurvECMO, labels = c("No", "Yes")),
+         Sex = factor(Sex, labels = c("Male", "Female")),
+         Dx = factor(Dx, labels = c("Aortic and mitral atresia", "Aortic atresia and mitral stenosis",
+                                    "Aortic stenosis and mitral atresia", "Aortic and mitral stenosis",
+                                    "other")),
+         SurgShuntT = factor(SurgShuntT, labels = c("Sano", "BT")),
+         ECA = factor(ECA, labels = c("No", "Yes")),
+         Hybrid = factor(Hybrid, labels = c("No", "Yes")),
+         MechVent = factor(MechVent, labels = c("No", "Yes")),
+         TR = factor(TR, labels = c("No", "Yes")),
+         VentDys = factor(VentDys, labels = c("No", "Yes"))) %>%
+
+  tbl_summary(by = SurvECMO,
+              label = list(Wgt ~ "Weight",
+                           Lgt ~ "Length",
+                           SurgAoCT ~ "Aortic Clamp time",
+                           SurgAAoD ~ "Aorta Diameter",
+                           SurgCircArrTot ~ "Circulatory Arrest time",
+                           SurgCPB ~ "Bypass time",
+                           SurgShuntS ~ "Shunt Size",
+                           Cre ~ "Pre-op creatinine",
+                           #SurvECMO ~ "Survival to ECMO decannulation"
+                           Dx ~ "HLHS type",
+                           SurgShuntT ~ "Shunt type",
+                           ECA ~ "Extra cardiac anatomy",
+                           MechVent ~ "Mechanically Ventilated",
+                           TR ~ "Tricuspid regurg",
+                           VentDys ~ "Ventricular dysfunction"),
+              type = list(Age ~ "continuous2",
+                          Wgt ~ "continuous2",
+                          Lgt ~ "continuous2",
+                          SurgAoCT ~ "continuous2",
+                          SurgAAoD ~ "continuous2",
+                          SurgCircArrTot ~ "continuous2",
+                          SurgCPB ~ "continuous2",
+                          CPBminusAoCT ~ "continuous2",
+                          SurgShuntS ~ "categorical",
+                          Cre ~ "continuous2",
+                          Sex ~ "categorical",
+                          Dx ~ "categorical",
+                          SurgShuntT ~ "categorical",
+                          ECA ~ "categorical",
+                          Hybrid ~ "categorical",
+                          MechVent ~ "categorical",
+                          TR ~ "categorical",
+                          VentDys ~ "categorical") ,
+              statistic = list(all_continuous() ~ c("{median} ({p25} - {p75})", "{mean} ({sd})", "{min}, {max}"),
+                               all_categorical() ~ "{n} ({p}%)")) %>%
+  add_p(test = list(Age ~ "t.test",
+                    Wgt ~ "t.test",
+                    Lgt ~ "t.test",
+                    SurgAoCT ~ "wilcox.test",
+                    SurgAAoD ~ "t.test",
+                    SurgCircArrTot ~ "wilcox.test",
+                    SurgCPB ~ "wilcox.test",
+                    SurgShuntS ~ "fisher.test",
+                    Cre ~ "t.test",
+                    Sex ~ "fisher.test",
+                    Dx ~ "fisher.test",
+                    SurgShuntT ~ "chisq.test.no.correct",
+                    ECA ~ "chisq.test.no.correct",
+                    Hybrid ~ "fisher.test",
+                    MechVent ~ "chisq.test.no.correct",
+                    TR ~ "fisher.test",
+                    VentDys ~ "fisher.test"),
+        pvalue_fun = ~style_pvalue(., digits = 2)) %>% add_overall() %>%
+  separate_p_footnotes() %>%
+  add_stat_label() %>%
+  bold_labels() %>%
+  modify_header(list(label ~ "**Variable**", all_stat_cols() ~ "**{level}**, N = {n}")) %>%
+  modify_spanning_header(all_stat_cols() ~ "**Survival To ECMO decannulation**") %>%
+  as_gt() %>%
+  gt::tab_header(
+    title = gt::md("**Table 3:Summary Statistics stratified by response(SurvECMO)**")
+  ) %>%
+  gt::tab_source_note("Data updated July 27, 2023")
+```
+
+
+## 1.4 Table 4: Summary Statistics Stratified by response(SurvSt2)
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE}
+
+data_ecmo %>% select("Age", "Wgt", "Lgt", "SurgAoCT", "SurgAAoD", "SurgCircArrTot",
+                     "SurgCPB", "CPBminusAoCT", "SurgShuntS", "Cre", "SurvSt2", "Sex", "Dx", 
+                     "SurgShuntT" ,"ECA",
+                     "Hybrid","MechVent", "TR", "VentDys", "ECMO", "ECMO48") %>%
+
+     mutate(SurvSt2 = factor(SurvSt2, labels = c("No", "Yes")),
+         Sex = factor(Sex, labels = c("Male", "Female")),
+         Dx = factor(Dx, labels = c("Aortic and mitral atresia", "Aortic atresia and mitral stenosis",
+                                    "Aortic stenosis and mitral atresia", "Aortic and mitral stenosis",
+                                    "other")),
+         SurgShuntT = factor(SurgShuntT, labels = c("Sano", "BT")),
+         ECA = factor(ECA, labels = c("No", "Yes")),
+         Hybrid = factor(Hybrid, labels = c("No", "Yes")),
+         MechVent = factor(MechVent, labels = c("No", "Yes")),
+         TR = factor(TR, labels = c("No", "Yes")),
+         VentDys = factor(VentDys, labels = c("No", "Yes")),
+         ECMO48 = factor(ECMO48, labels = c("No", "Yes")),
+         ECMO = factor(ECMO, labels = c("No", "Yes"))) %>%
+
+  tbl_summary(by = SurvSt2,
+              label = list(Wgt ~ "Weight",
+                           Lgt ~ "Length",
+                           SurgAoCT ~ "Aortic Clamp time",
+                           SurgAAoD ~ "Aorta Diameter",
+                           SurgCircArrTot ~ "Circulatory Arrest time",
+                           SurgCPB ~ "Bypass time",
+                           SurgShuntS ~ "Shunt Size",
+                           Cre ~ "Pre-op creatinine",
+                           #SurvSt2 ~ "Transplant-free survival to stage 2"
+                           Dx ~ "HLHS type",
+                           SurgShuntT ~ "Shunt type",
+                           ECA ~ "Extra cardiac anatomy",
+                           MechVent ~ "Mechanically Ventilated",
+                           TR ~ "Tricuspid regurg",
+                           VentDys ~ "Ventricular dysfunction",
+                           ECMO48 ~ "ECMO within 48 hours",
+                           ECMO ~ "ECMO post Norwood"),
+              type = list(Age ~ "continuous2",
+                          Wgt ~ "continuous2",
+                          Lgt ~ "continuous2",
+                          SurgAoCT ~ "continuous2",
+                          SurgAAoD ~ "continuous2",
+                          SurgCircArrTot ~ "continuous2",
+                          SurgCPB ~ "continuous2",
+                          CPBminusAoCT ~ "continuous2",
+                          SurgShuntS ~ "categorical",
+                          Cre ~ "continuous2",
+                          Sex ~ "categorical",
+                          Dx ~ "categorical",
+                          SurgShuntT ~ "categorical",
+                          ECA ~ "categorical",
+                          Hybrid ~ "categorical",
+                          MechVent ~ "categorical",
+                          TR ~ "categorical",
+                          VentDys ~ "categorical",
+                          ECMO48 ~ "categorical",
+                          ECMO ~ "categorical") ,
+              statistic = list(all_continuous() ~ c("{median} ({p25} - {p75})","{mean} ({sd})", "{min}, {max}"),
+                               all_categorical() ~ "{n} ({p}%)")) %>%
+  add_p(test = list(Age ~ "t.test",
+                    Wgt ~ "t.test",
+                    Lgt ~ "t.test",
+                    SurgAoCT ~ "wilcox.test",
+                    SurgAAoD ~ "t.test",
+                    SurgCircArrTot ~ "wilcox.test",
+                    SurgCPB ~ "wilcox.test",
+                    SurgShuntS ~ "fisher.test",
+                    Cre ~ "t.test",
+                    Sex ~ "fisher.test",
+                    Dx ~ "fisher.test",
+                    SurgShuntT ~ "chisq.test.no.correct",
+                    ECA ~ "chisq.test.no.correct",
+                    Hybrid ~ "fisher.test",
+                    MechVent ~ "chisq.test.no.correct",
+                    TR ~ "fisher.test",
+                    VentDys ~ "fisher.test",
+                    ECMO48 ~ "chisq.test.no.correct",
+                    ECMO ~ "chisq.test.no.correct"),
+        pvalue_fun = ~style_pvalue(., digits = 2)) %>% add_overall() %>%
+  separate_p_footnotes() %>%
+  bold_p() %>% 
+  add_stat_label() %>%
+  bold_labels() %>%
+  modify_header(list(label ~ "**Variable**", all_stat_cols() ~ "**{level}**, N = {n}")) %>%
+  modify_spanning_header(all_stat_cols() ~ "**Transplant Free Survival to stage 2**") %>%
+  as_gt() %>%
+  gt::tab_header(
+    title = gt::md("**Table 4:Summary Statistics stratified by response(SurvSt2)**")
+  ) %>%
+  gt::tab_source_note("Data updated July 27, 2023")
+```
+
+
+## 1.5 Table 5: Summary Statistics Stratified by response(TFHS)
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE}
+
+data_ecmo %>% select("Age", "Wgt", "Lgt", "SurgAoCT", "SurgAAoD", "SurgCircArrTot",
+                     "SurgCPB", "CPBminusAoCT", "SurgShuntS", "Cre", "Sex", "Dx", "SurgShuntT" ,"ECA", 
+                     "Hybrid","MechVent", "TR", "VentDys", "ECMO", "ECMO48", "TFHS") %>% 
+  
+     mutate(TFHS = factor(TFHS, labels = c("No", "Yes")), 
+         Sex = factor(Sex, labels = c("Male", "Female")),
+         Dx = factor(Dx, labels = c("Aortic and mitral atresia", "Aortic atresia and mitral stenosis",
+                                    "Aortic stenosis and mitral atresia", "Aortic and mitral stenosis",
+                                    "other")),
+         SurgShuntT = factor(SurgShuntT, labels = c("Sano", "BT")),
+         ECA = factor(ECA, labels = c("No", "Yes")),
+         Hybrid = factor(Hybrid, labels = c("No", "Yes")),
+         MechVent = factor(MechVent, labels = c("No", "Yes")),
+         TR = factor(TR, labels = c("No", "Yes")),
+         VentDys = factor(VentDys, labels = c("No", "Yes")),
+         ECMO48 = factor(ECMO48, labels = c("No", "Yes")),
+         ECMO = factor(ECMO, labels = c("No", "Yes"))) %>%
+  
+  tbl_summary(by = TFHS,
+              label = list(Wgt ~ "Weight",
+                           Lgt ~ "Length",
+                           SurgAoCT ~ "Aortic Clamp time",
+                           SurgAAoD ~ "Aorta Diameter",
+                           SurgCircArrTot ~ "Circulatory Arrest time",
+                           SurgCPB ~ "Bypass time",
+                           SurgShuntS ~ "Shunt Size",
+                           Cre ~ "Pre-op creatinine",
+                           #TFHS ~ "Transplant-free hospital survival",
+                           Dx ~ "HLHS type",
+                           SurgShuntT ~ "Shunt type",
+                           ECA ~ "Extra cardiac anatomy",
+                           MechVent ~ "Mechanically Ventilated",
+                           TR ~ "Tricuspid regurg",
+                           VentDys ~ "Ventricular dysfunction",
+                           ECMO48 ~ "ECMO within 48 hours",
+                           ECMO ~ "ECMO post Norwood"),
+              type = list(Age ~ "continuous2",
+                          Wgt ~ "continuous2",
+                          Lgt ~ "continuous2",
+                          SurgAoCT ~ "continuous2",
+                          SurgAAoD ~ "continuous2",
+                          SurgCircArrTot ~ "continuous2",
+                          SurgCPB ~ "continuous2",
+                          CPBminusAoCT ~ "continuous2",
+                          SurgShuntS ~ "categorical",
+                          Cre ~ "continuous2",
+                          Sex ~ "categorical",
+                          Dx ~ "categorical",
+                          SurgShuntT ~ "categorical",
+                          ECA ~ "categorical",
+                          Hybrid ~ "categorical",
+                          MechVent ~ "categorical",
+                          TR ~ "categorical",
+                          VentDys ~ "categorical",
+                          ECMO48 ~ "categorical",
+                          ECMO ~ "categorical") ,
+              statistic = list(all_continuous() ~ c("{median} ({p25} - {p75})","{mean} ({sd})", "{min}, {max}"), 
+                               all_categorical() ~ "{n} ({p}%)")) %>%
+  add_p(test = list(Age ~ "t.test",
+                    Wgt ~ "t.test",
+                    Lgt ~ "t.test",
+                    SurgAoCT ~ "wilcox.test",
+                    SurgAAoD ~ "t.test",
+                    SurgCircArrTot ~ "wilcox.test",
+                    SurgCPB ~ "wilcox.test",
+                    SurgShuntS ~ "fisher.test",
+                    Cre ~ "t.test",
+                    Sex ~ "fisher.test",
+                    Dx ~ "fisher.test",
+                    SurgShuntT ~ "chisq.test.no.correct",
+                    ECA ~ "chisq.test.no.correct",
+                    Hybrid ~ "fisher.test",
+                    MechVent ~ "chisq.test.no.correct",
+                    TR ~ "fisher.test",
+                    VentDys ~ "fisher.test",
+                    ECMO48 ~ "chisq.test.no.correct",
+                    ECMO ~ "chisq.test.no.correct"),
+        pvalue_fun = ~style_pvalue(., digits = 2)) %>% add_overall() %>% 
+  separate_p_footnotes() %>%
+  bold_p() %>% 
+  add_stat_label() %>%
+  bold_labels() %>%
+  modify_header(list(label ~ "**Variable**", all_stat_cols() ~ "**{level}**, N = {n}")) %>%
+  modify_spanning_header(all_stat_cols() ~ "**Transplant Free Hospital Survival**") %>%
+  as_gt() %>%
+  gt::tab_header(
+    title = gt::md("**Table 5:Summary Statistics stratified by response(TFHS)**")
+  ) %>%
+  gt::tab_source_note("Data updated July 27, 2023")
+```
+
+
+# **2 Figures**
+
+## 2.1 Figure 1: ECMO within 48 hours and Aortic clamp time
+
+
+```{r, warning=FALSE, echo=FALSE, fig.align='center', fig.cap= "Figure1: ECMO within 48 hours and Aortic clamp time", Comment= FALSE}
+
+
+library(ggplot2)
+
+data_ecmo <- data_ecmo %>%
+   mutate(ECMO48 = factor(ECMO48, labels = c("No", "Yes")))
+
+  ggplot(data=subset(data_ecmo, !is.na(ECMO48)), aes(x=ECMO48, y=SurgAoCT, fill = ECMO48)) +
+  geom_boxplot() + xlab("ECMO within 48 hours") +
+  ylab("Aortic Clamp Time (Minutes)") +
+   theme(legend.position="none")
+```
+
+
+## 2.2 Figure 2: ECMO within 48 hours and Aorta Diameter
+
+```{r, warning=FALSE, echo=FALSE, fig.align='center', fig.cap="Figure2: ECMO within 48 hours and Aorta Diameter", Comment= FALSE}
+
+
+data_ecmo <- data_ecmo %>%
+   mutate(ECMO48 = factor(ECMO48, labels = c("No", "Yes")))
+
+  ggplot(data=subset(data_ecmo, !is.na(ECMO48)) ,aes(x=ECMO48, y=SurgAAoD, fill = ECMO48)) +
+  geom_boxplot() + xlab("ECMO within 48 hours") +
+  ylab("Aorta Diameter (mm)") +
+   theme(legend.position="none")
+```
+
+
+## 2.3 Figure 3: ECMO within 48 hours and Bypass time
+
+```{r, warning=FALSE, echo=FALSE, fig.align='center', fig.cap="Figure3: ECMO within 48 hours and Bypass time", Comment= FALSE}
+
+data_ecmo <- data_ecmo %>%
+   mutate(ECMO48 = factor(ECMO48, labels = c("No", "Yes")))
+
+  ggplot(data=subset(data_ecmo, !is.na(ECMO48)), aes(x=ECMO48, y=SurgCPB, fill = ECMO48)) +
+  geom_boxplot() + xlab("ECMO within 48 hours") +
+  ylab("Bypass Time (Minutes)") +
+   theme(legend.position="none")
+```
+
+
+## 2.4 Figure 4: ECMO within 48 hours and Total circulatory arrest time
+
+
+```{r, warning=FALSE, echo=FALSE, fig.align='center', fig.cap="Figure4: ECMO within 48 hours and Total circulatory arrest time", Comment= FALSE}
+
+data_ecmo <- data_ecmo <- data_ecmo %>%
+   mutate(ECMO48 = factor(ECMO48, labels = c("No", "Yes")))
+
+  ggplot(data=subset(data_ecmo, !is.na(ECMO48)), aes(x=ECMO48, y=SurgCircArrTot, fill = ECMO48)) +
+  geom_boxplot() + xlab("ECMO within 48 hours") +
+  ylab("Total circulatory arrest time (Minutes)") +
+   theme(legend.position="none")
+```
+
+
+
+
+# **3 Variable Selection and Modeling**
+ 
+For the initial model we consider the variable Age, Weight(Wgt), Length(Lgt), Sex, Diagnosis Type(Dx), Aortic Clamp time(SurgAoCT), Hypoplastic ascending aorta diameter(SurgAAoD), Total circulatory arrest time(SurgCircArrTot), Non Clamp CPB time(CPBminusAoCT), Shaunt type(SurgShuntT), Extra-cardiac/genetic anomaly(ECA), Hybrid, Mechanically ventilated(MechVent), Ventricular dysfunction(VentDys), and Pre-op creatinine(Cre). The goal is to have the combination of variables that has the lowest AIC, and the final model is reported for each outcome. In Tables 6–9, the odds ratio (OR), 95% Confidence interval (CI) for OR, and P-value are reported for each model to see the significant predictors for each outcome.
+
+*Note That:* I have created a new variable Non Clamp CPB time(CPBminusAoCT) and added it with our model in stead of Bypass time(SurgCPB). 
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, comment=FALSE, include=FALSE}
+## 3.1 Stepwise variable selection for outcome(ECMO48)
+
+library(MASS)
+
+data_ecmo_ecmo481 <- data_ecmo %>% dplyr::select(Age, Wgt, Lgt, Sex, Dx, SurgAoCT, SurgAAoD, SurgCircArrTot, SurgCPB, SurgShuntT, ECA, Hybrid, MechVent, VentDys, Cre, ECMO48)
+
+glm.fit_ecmo481 <- glm(ECMO48 ~ ., data = na.omit(data_ecmo_ecmo481), family = "binomial")
+
+scopeformula <- formula(glm.fit_ecmo481)
+
+step <- stepAIC(glm.fit_ecmo481, scope = scopeformula, direction = "both", trace = FALSE)
+
+step
+
+
+```
+
+
+
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE, include=FALSE}
+## 3.1 Multiple Logistic Regression for outcome(ECMO48)
+
+# library(knitr)
+# kable(summary(logit.survst2)$coef, caption =  "Table4: Logistic Regression with response Survst2")
+# 
+# data_ecmo_ecmo481 <- data_ecmo_ecmo48 %>% dplyr::select(Lgt, Sex, SurgAoCT, SurgCircArrTot, SurgCPB, Hybrid, MechVent, ECMO48) %>%
+# 
+#    mutate( Sex = factor(Sex, labels = c("Male", "Female")),
+#      Hybrid = factor(Hybrid, labels = c("No", "Yes")),
+#          MechVent = factor(MechVent, labels = c("No", "Yes")))
+# 
+# logit_ecmo481 <- glm(ECMO48 ~ Lgt + Sex + SurgAoCT + SurgCircArrTot + SurgCPB + Hybrid +
+#     MechVent, family = "binomial", data = na.omit(data_ecmo_ecmo481) )
+# 
+# tbl_regression(logit_ecmo481, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>% bold_p() %>%
+#   bold_labels() %>%
+#   as_gt() %>%
+#   gt::tab_header(
+#     title = gt::md("**Table 6: Summary of Multiple Logistic Regression for outcome (ECMO48)**")
+#   ) %>%
+#   gt::tab_source_note("Data updated July 27, 2023")
+
+```
+
+
+## 3.1 Multiple Logistic Regression for outcome(ECMO48)
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, comment=FALSE, include=FALSE}
+## 3.1 Stepwise variable selection for outcome(ECMO48) with CPBminusAoCT
+
+library(MASS)
+
+data_ecmo_ecmo48 <- data_ecmo %>% dplyr::select(Age, Wgt, Lgt, Sex, Dx, SurgAoCT, SurgAAoD, SurgCircArrTot, CPBminusAoCT, SurgShuntT, ECA, Hybrid, MechVent, VentDys, Cre, ECMO48)
+
+glm.fit_ecmo482 <- glm(ECMO48 ~ ., data = na.omit(data_ecmo_ecmo48), family = "binomial")
+
+scopeformula <- formula(glm.fit_ecmo482)
+
+step <- stepAIC(glm.fit_ecmo482, scope = scopeformula, direction = "both", trace = FALSE)
+
+step
+
+
+```
+
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE}
+
+# library(knitr)
+# kable(summary(logit.survst2)$coef, caption =  "Table4: Logistic Regression with response Survst2")
+
+data_ecmo_ecmo482 <- data_ecmo_ecmo48 %>% dplyr::select(Lgt, Sex, Dx, SurgAAoD, SurgCircArrTot, CPBminusAoCT, MechVent, ECMO48) %>% 
+  
+   mutate( Sex = factor(Sex, labels = c("Male", "Female")),
+            Dx = factor(Dx, labels = c("Aortic and mitral atresia", 
+                                       "Aortic atresia and mitral stenosis", 
+                                       "Aortic stenosis and mitral atresia", 
+                                       "Aortic and mitral stenosis",
+                                      "other")),
+         MechVent = factor(MechVent, labels = c("No", "Yes")))
+
+logit_ecmo482 <- glm(ECMO48 ~ Lgt + Sex + Dx + SurgAAoD + SurgCircArrTot + CPBminusAoCT + 
+    MechVent, family = "binomial", data = na.omit(data_ecmo_ecmo482) )
+  
+tbl_regression(logit_ecmo482, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>% bold_p() %>% 
+  bold_labels() %>% 
+  as_gt() %>%
+  gt::tab_header(
+    title = gt::md("**Table 6: Summary of Multiple Logistic Regression for outcome (ECMO48)**")
+  ) %>%
+  gt::tab_source_note("Data updated July 27, 2023")
+
+```
+
+
+## 3.2 Multiple Logistic Regression for outcome(ECMO)
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE, comment=FALSE}
+## 3.3 Stepwise variable selection for outcome(ECMO)
+
+
+data_ecmo_ecmo1 <- data_ecmo %>% dplyr::select(Age, Wgt, Lgt, Sex, Dx, SurgAoCT, SurgAAoD, SurgCircArrTot, SurgCPB, SurgShuntT, ECA, Hybrid, MechVent, VentDys, Cre, ECMO)
+
+glm.fit_ecmo1 <- glm(ECMO ~ ., data = na.omit(data_ecmo_ecmo1), family = "binomial")
+
+scopeformula <- formula(glm.fit_ecmo1)
+
+step <- stepAIC(glm.fit_ecmo1, scope = scopeformula, direction = "both", trace = FALSE)
+
+step
+
+
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE, include=FALSE}
+
+# library(knitr)
+# kable(summary(logit.survst2)$coef, caption =  "Table4: Logistic Regression with response Survst2")
+
+# data_ecmo_ecmo1 <- data_ecmo_ecmo1 %>% dplyr::select(Lgt, SurgAoCT, SurgCPB, SurgShuntT, Hybrid, ECMO) %>% 
+#   
+#    mutate(Hybrid = factor(Hybrid, labels = c("No", "Yes")),
+#            SurgShuntT = factor(SurgShuntT, labels = c("Sano", "BT")))
+# 
+# logit_ecmo1 <- glm(ECMO ~ Lgt + SurgAoCT + SurgCPB + SurgShuntT + Hybrid, family = "binomial", data = data_ecmo_ecmo1 )
+#  
+# tbl_regression(logit_ecmo1, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>%bold_p() %>% 
+#   bold_labels() %>% 
+#   as_gt() %>%
+#   gt::tab_header(
+#     title = gt::md("**Table 7: Summary of Multiple Logistic Regression for outcome(ECMO)**")
+#   ) %>%
+#   gt::tab_source_note("Data updated July 27, 2023")
+
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE, comment=FALSE}
+## 3.4 Stepwise variable selection for outcome(ECMO) with CPBminusAoCT
+
+
+data_ecmo_ecmo2 <- data_ecmo %>% dplyr::select(Age, Wgt, Lgt, Sex, Dx, SurgAoCT, SurgAAoD, SurgCircArrTot, CPBminusAoCT, SurgShuntT, ECA, Hybrid, MechVent, VentDys, Cre, ECMO)
+
+glm.fit_ecmo2 <- glm(ECMO ~ ., data = na.omit(data_ecmo_ecmo2), family = "binomial")
+
+scopeformula <- formula(glm.fit_ecmo2)
+
+step <- stepAIC(glm.fit_ecmo2, scope = scopeformula, direction = "both", trace = FALSE)
+
+step
+
+
+```
+
+
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE}
+
+# library(knitr)
+# kable(summary(logit.survst2)$coef, caption =  "Table4: Logistic Regression with response Survst2")
+
+data_ecmo_ecmo2 <- data_ecmo_ecmo2 %>% dplyr::select(Lgt, CPBminusAoCT, SurgShuntT, Hybrid, ECMO) %>% 
+  
+   mutate(Hybrid = factor(Hybrid, labels = c("No", "Yes")),
+           SurgShuntT = factor(SurgShuntT, labels = c("Sano", "BT")))
+
+logit_ecmo2 <- glm(ECMO ~ Lgt + CPBminusAoCT + SurgShuntT + Hybrid, family = "binomial", data = data_ecmo_ecmo2 )
+ 
+tbl_regression(logit_ecmo2, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>%bold_p() %>% 
+  bold_labels() %>% 
+  as_gt() %>%
+  gt::tab_header(
+    title = gt::md("**Table 7: Summary of Multiple Logistic Regression for outcome(ECMO)**")
+  ) %>%
+  gt::tab_source_note("Data updated July 27, 2023")
+
+```
+
+
+
+
+## 3.3 Multiple Logistic Regression for outcome(SurvSt2)
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, comment=FALSE, include=FALSE}
+## 3.5 Stepwise variable selection for outcome(SurvSt2)
+
+data_ecmo_survst21 <- data_ecmo %>% dplyr::select(Age, Wgt, Lgt, Sex, Dx, SurgAoCT, SurgAAoD, SurgCircArrTot, SurgCPB, SurgShuntT, ECA, Hybrid, MechVent, VentDys, Cre, SurvSt2)
+
+glm.fit_survst21 <- glm(SurvSt2 ~ ., data = na.omit(data_ecmo_survst21), family = "binomial")
+
+scopeformula <- formula(glm.fit_survst21)
+
+step <- stepAIC(glm.fit_survst21, scope = scopeformula, direction = "both", trace = FALSE)
+
+step
+
+
+```
+
+
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE, include=FALSE}
+
+# library(knitr)
+# kable(summary(logit.survst2)$coef, caption =  "Table4: Logistic Regression with response Survst2")
+
+# data_ecmo_survst21 <- data_ecmo_survst21 %>% dplyr::select(Lgt, Sex, SurgAoCT, SurgCPB, MechVent, SurvSt2) %>% 
+#   
+#    mutate(Sex = factor(Sex, labels = c("Male", "Female")),
+#          MechVent = factor(MechVent, labels = c("No", "Yes")))
+# 
+# glm.fit_survst21 <- glm(SurvSt2 ~ Lgt + Sex + SurgAoCT + SurgCPB + MechVent, family = "binomial", data = data_ecmo_survst21 )
+#  
+# tbl_regression(glm.fit_survst21, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>% bold_p() %>%
+#   bold_labels() %>% 
+#   as_gt() %>%
+#   gt::tab_header(
+#     title = gt::md("**Table 8: Summary of Multiple Logistic Regression for outcome(SurvSt2)**")
+#   ) %>%
+#   gt::tab_source_note("Data updated July 27, 2023")
+
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, comment=FALSE, include=FALSE}
+## 3.5 Stepwise variable selection for outcome(SurvSt2)
+
+data_ecmo_survst22 <- data_ecmo %>% dplyr::select(Age, Wgt, Lgt, Sex, Dx, SurgAoCT, SurgAAoD, SurgCircArrTot, CPBminusAoCT, SurgShuntT, ECA, Hybrid, MechVent, VentDys, Cre, SurvSt2)
+
+glm.fit_survst22 <- glm(SurvSt2 ~ ., data = na.omit(data_ecmo_survst22), family = "binomial")
+
+scopeformula <- formula(glm.fit_survst22)
+
+step <- stepAIC(glm.fit_survst22, scope = scopeformula, direction = "both", trace = FALSE)
+
+step
+
+
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE}
+
+# library(knitr)
+# kable(summary(logit.survst2)$coef, caption =  "Table4: Logistic Regression with response Survst2")
+
+data_ecmo_survst22 <- data_ecmo_survst22 %>% dplyr::select(Lgt, Sex, SurgAoCT, CPBminusAoCT, MechVent, SurvSt2) %>% 
+  
+   mutate(Sex = factor(Sex, labels = c("Male", "Female")),
+         MechVent = factor(MechVent, labels = c("No", "Yes")))
+
+glm.fit_survst22 <- glm(SurvSt2 ~ Lgt + Sex + SurgAoCT + CPBminusAoCT + MechVent, family = "binomial", data = data_ecmo_survst22 )
+ 
+tbl_regression(glm.fit_survst22, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>% bold_p() %>%
+  bold_labels() %>% 
+  as_gt() %>%
+  gt::tab_header(
+    title = gt::md("**Table 8: Summary of Multiple Logistic Regression for outcome(SurvSt2)**")
+  ) %>%
+  gt::tab_source_note("Data updated July 27, 2023")
+
+```
+
+
+## 3.4 Multiple Logistic Regression for outcome(TFHS)
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, comment=FALSE, include=FALSE}
+## 3.7 Stepwise variable selection for outcome (TFHS)
+
+
+data_ecmo_tfhs1 <- data_ecmo %>% dplyr::select(Age, Wgt, Lgt, Sex, Dx, SurgAoCT, SurgAAoD, SurgCircArrTot, SurgCPB, SurgShuntT, ECA, Hybrid, MechVent, VentDys, Cre, TFHS)
+
+glm.fit_tfhs1 <- glm(TFHS ~ ., data = na.omit(data_ecmo_tfhs1), family = "binomial")
+
+scopeformula <- formula(glm.fit_tfhs1)
+
+step <- stepAIC(glm.fit_tfhs1, scope = scopeformula, direction = "both", trace = FALSE)
+
+
+```
+
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE, include=FALSE}
+
+
+# library(knitr)
+# kable(summary(logit.survst2)$coef, caption =  "Table4: Logistic Regression with response Survst2")
+
+# data_ecmo_tfhs1 <- data_ecmo_tfhs1 %>% dplyr::select(Lgt, Sex, SurgAoCT, SurgCPB, MechVent, TFHS) %>% 
+#   
+#    mutate( Sex = factor(Sex, labels = c("Male", "Female")),
+#            MechVent = factor(MechVent, labels = c("No", "Yes")))
+# 
+# logit.TFHS1 <- glm(TFHS ~  Lgt + Sex+ SurgAoCT + SurgCPB+ MechVent, 
+#                   family = "binomial", data = na.omit(data_ecmo_tfhs1) )
+# 
+# tbl_regression(logit.TFHS1, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>% bold_p() %>%
+#   bold_labels() %>% 
+#   as_gt() %>%
+#   gt::tab_header(
+#     title = gt::md("**Table 9: Summary of Multiple Logistic Regression for outcome(TFHS)**")
+#   ) %>%
+#   gt::tab_source_note("Data updated July 27, 2023")
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, comment=FALSE, include=FALSE}
+## 3.7 Stepwise variable selection for outcome (TFHS)
+
+
+data_ecmo_tfhs2 <- data_ecmo %>% dplyr::select(Age, Wgt, Lgt, Sex, Dx, SurgAoCT, SurgAAoD, SurgCircArrTot, CPBminusAoCT, SurgShuntT, ECA, Hybrid, MechVent, VentDys, Cre, TFHS)
+
+glm.fit_tfhs2 <- glm(TFHS ~ ., data = na.omit(data_ecmo_tfhs2), family = "binomial")
+
+scopeformula <- formula(glm.fit_tfhs2)
+
+step <- stepAIC(glm.fit_tfhs2, scope = scopeformula, direction = "both", trace = FALSE)
+
+step
+
+```
+
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE}
+
+# library(knitr)
+# kable(summary(logit.survst2)$coef, caption =  "Table4: Logistic Regression with response Survst2")
+
+data_ecmo_tfhs2 <- data_ecmo_tfhs2 %>% dplyr::select(Lgt, Sex, SurgAoCT, CPBminusAoCT, MechVent, TFHS) %>% 
+  
+   mutate( Sex = factor(Sex, labels = c("Male", "Female")),
+           MechVent = factor(MechVent, labels = c("No", "Yes")))
+
+logit.TFHS2 <- glm(TFHS ~  Lgt + Sex+ SurgAoCT + CPBminusAoCT+ MechVent, 
+                  family = "binomial", data = na.omit(data_ecmo_tfhs2) )
+
+tbl_regression(logit.TFHS2, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>% bold_p() %>%
+  bold_labels() %>% 
+  as_gt() %>%
+  gt::tab_header(
+    title = gt::md("**Table 9: Summary of Multiple Logistic Regression for outcome(TFHS)**")
+  ) %>%
+  gt::tab_source_note("Data updated July 27, 2023")
+```
+
+# **4 Full Models with and without SurgCPB**
+
+This section will provide the comparison of Full models with and without Bypass time(SurgCPB) for the outcomes ECMO48, ECMO, SurvSt2 and TFHS.
+
+As we mentioned earlier section, for the full model we consider the variable Age, Weight(Wgt), Length(Lgt), Sex, Diagnosis Type(Dx), Aortic Clamp time(SurgAoCT), Hypoplastic ascending aorta diameter(SurgAAoD), Total circulatory arrest time(SurgCircArrTot), Non Clamp CPB time(CPBminusAoCT), Shaunt type(SurgShuntT), Extra-cardiac/genetic anomaly(ECA), Hybrid, Mechanically ventilated(MechVent), Ventricular dysfunction(VentDys), and Pre-op creatinine(Cre).
+
+
+
+```{r, echo=FALSE, warning=FALSE, include=FALSE}
+## 4.1 Full Model for the outcome (ECMO48) with SurgCPB
+data_ecmo_ecmo48 <- data_ecmo %>% dplyr::select(Age, Wgt, Lgt, Sex, Dx, SurgAoCT, SurgAAoD, SurgCircArrTot, SurgCPB, SurgShuntT, ECA, Hybrid, MechVent, VentDys, Cre, ECMO48) %>% 
+  mutate(Sex = factor(Sex, labels = c("Male", "Female")),
+         Dx = factor(Dx, labels = c("Aortic and mitral atresia", "Aortic atresia and mitral stenosis",
+                                    "Aortic stenosis and mitral atresia", "Aortic and mitral stenosis",
+                                    "other")),
+         SurgShuntT = factor(SurgShuntT, labels = c("Sano", "BT")),
+         ECA = factor(ECA, labels = c("No", "Yes")),
+         Hybrid = factor(Hybrid, labels = c("No", "Yes")),
+         MechVent = factor(MechVent, labels = c("No", "Yes")),
+         VentDys = factor(VentDys, labels = c("No", "Yes")))
+
+glm.fit_full1 <- glm(ECMO48 ~ ., data = na.omit(data_ecmo_ecmo48), family = "binomial")
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE, include=FALSE}
+  
+t1 <- tbl_regression(glm.fit_full1, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>% bold_p() %>% 
+  bold_labels() #%>% 
+  # as_gt() %>%
+  # gt::tab_header(
+  #   title = gt::md("**Table 10: Full Multiple Logistic Regression for outcome (ECMO48) with SurgCPB**")
+  # ) %>%
+  # gt::tab_source_note("Data updated July 27, 2023")
+
+```
+
+
+
+```{r, echo=FALSE, include=FALSE, warning=FALSE, include=FALSE}
+## 4.2 Full Model for the outcome (ECMO48) without SurgCPB
+data_ecmo_ecmo48 <- data_ecmo %>% dplyr::select(Age, Wgt, Lgt, Sex, Dx, SurgAoCT, SurgAAoD, SurgCircArrTot, SurgShuntT, ECA, Hybrid, MechVent, VentDys, Cre, ECMO48) %>% 
+mutate(Sex = factor(Sex, labels = c("Male", "Female")),
+         Dx = factor(Dx, labels = c("Aortic and mitral atresia", "Aortic atresia and mitral stenosis",
+                                    "Aortic stenosis and mitral atresia", "Aortic and mitral stenosis",
+                                    "other")),
+         SurgShuntT = factor(SurgShuntT, labels = c("Sano", "BT")),
+         ECA = factor(ECA, labels = c("No", "Yes")),
+         Hybrid = factor(Hybrid, labels = c("No", "Yes")),
+         MechVent = factor(MechVent, labels = c("No", "Yes")),
+         VentDys = factor(VentDys, labels = c("No", "Yes")))
+
+glm.fit_full2 <- glm(ECMO48 ~ ., data = na.omit(data_ecmo_ecmo48), family = "binomial")
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE, include=FALSE}
+  
+t2 <- tbl_regression(glm.fit_full2, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>% bold_p() %>% 
+  bold_labels() #%>% 
+  # as_gt() %>%
+  # gt::tab_header(
+  #   title = gt::md("**Table 11: Full Multiple Logistic Regression for outcome (ECMO48) without SurgCPB**")
+  # ) %>%
+  # gt::tab_source_note("Data updated July 27, 2023")
+
+```
+
+## 4.1 Full Multiple Logistic Regression for outcome (ECMO) with and without SurgCPB
+
+```{r, echo=FALSE}
+tbl_merge1 <-
+  tbl_merge(
+    tbls = list(t1, t2),
+    tab_spanner = c("**With SurgCPB**", "**Without SurgCPB**")
+  )%>% as_gt() %>% gt::tab_header(
+
+title = gt::md("**Table 10: Full Model Comparison for outcome (ECMO48) with and without SurgCPB**"))%>%
+  
+  gt::tab_source_note("Data updated July 27, 2023")
+
+tbl_merge1
+```
+
+
+```{r, echo=FALSE, warning=FALSE, include=FALSE}
+## 4.3 Full Model for the outcome (ECMO) with SurgCPB
+data_ecmo_ecmo <- data_ecmo %>% dplyr::select(Age, Wgt, Lgt, Sex, Dx, SurgAoCT, SurgAAoD, SurgCircArrTot, SurgCPB, SurgShuntT, ECA, Hybrid, MechVent, VentDys, Cre, ECMO) %>% 
+  mutate(Sex = factor(Sex, labels = c("Male", "Female")),
+         Dx = factor(Dx, labels = c("Aortic and mitral atresia", "Aortic atresia and mitral stenosis",
+                                    "Aortic stenosis and mitral atresia", "Aortic and mitral stenosis",
+                                    "other")),
+         SurgShuntT = factor(SurgShuntT, labels = c("Sano", "BT")),
+         ECA = factor(ECA, labels = c("No", "Yes")),
+         Hybrid = factor(Hybrid, labels = c("No", "Yes")),
+         MechVent = factor(MechVent, labels = c("No", "Yes")),
+         VentDys = factor(VentDys, labels = c("No", "Yes")))
+
+glm.fit_full3 <- glm(ECMO ~ ., data = na.omit(data_ecmo_ecmo), family = "binomial")
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE, include=FALSE}
+  
+t3 <- tbl_regression(glm.fit_full3, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>% bold_p() %>% 
+  bold_labels() #%>% 
+  # as_gt() %>%
+  # gt::tab_header(
+  #   title = gt::md("**Table 12: Full Multiple Logistic Regression for outcome (ECMO) with SurgCPB**")
+  # ) %>%
+  # gt::tab_source_note("Data updated July 27, 2023")
+
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE, include=FALSE}
+## 4.4 Full Model for the outcome (ECMO) without SurgCPB
+data_ecmo_ecmo <- data_ecmo %>% dplyr::select(Age, Wgt, Lgt, Sex, Dx, SurgAoCT, SurgAAoD, SurgCircArrTot, SurgShuntT, ECA, Hybrid, MechVent, VentDys, Cre, ECMO) %>% 
+  mutate(Sex = factor(Sex, labels = c("Male", "Female")),
+         Dx = factor(Dx, labels = c("Aortic and mitral atresia", "Aortic atresia and mitral stenosis",
+                                    "Aortic stenosis and mitral atresia", "Aortic and mitral stenosis",
+                                    "other")),
+         SurgShuntT = factor(SurgShuntT, labels = c("Sano", "BT")),
+         ECA = factor(ECA, labels = c("No", "Yes")),
+         Hybrid = factor(Hybrid, labels = c("No", "Yes")),
+         MechVent = factor(MechVent, labels = c("No", "Yes")),
+         VentDys = factor(VentDys, labels = c("No", "Yes")))
+
+glm.fit_full4 <- glm(ECMO ~ ., data = na.omit(data_ecmo_ecmo), family = "binomial")
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE, include=FALSE}
+  
+t4 <- tbl_regression(glm.fit_full4, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>% bold_p() %>% 
+  bold_labels() #%>% 
+  # as_gt() %>%
+  # gt::tab_header(
+  #   title = gt::md("**Table 13: Full Multiple Logistic Regression for outcome (ECMO) without SurgCPB**")
+  # ) %>%
+  # gt::tab_source_note("Data updated July 27, 2023")
+
+```
+
+
+## 4.2 Full Multiple Logistic Regression for outcome (ECMO) with and without SurgCPB
+
+```{r, echo=FALSE}
+tbl_merge2 <-
+  tbl_merge(
+    tbls = list(t3, t4),
+    tab_spanner = c("**With SurgCPB**", "**Without SurgCPB**")
+  )%>% as_gt() %>% gt::tab_header(
+
+title = gt::md("**Table 11: Full Model Comparison for outcome (ECMO) with and without SurgCPB**"))%>%
+  
+  gt::tab_source_note("Data updated July 27, 2023")
+
+tbl_merge2
+```
+
+
+```{r, echo=FALSE, warning=FALSE, include=FALSE}
+## 4.5 Full Model for the outcome (SurvSt2) with SurgCPB
+
+data_ecmo_survst2 <- data_ecmo %>% dplyr::select(Age, Wgt, Lgt, Sex, Dx, SurgAoCT, SurgAAoD, SurgCircArrTot, SurgCPB, SurgShuntT, ECA, Hybrid, MechVent, VentDys, Cre, SurvSt2) %>% 
+  mutate(Sex = factor(Sex, labels = c("Male", "Female")),
+         Dx = factor(Dx, labels = c("Aortic and mitral atresia", "Aortic atresia and mitral stenosis",
+                                    "Aortic stenosis and mitral atresia", "Aortic and mitral stenosis",
+                                    "other")),
+         SurgShuntT = factor(SurgShuntT, labels = c("Sano", "BT")),
+         ECA = factor(ECA, labels = c("No", "Yes")),
+         Hybrid = factor(Hybrid, labels = c("No", "Yes")),
+         MechVent = factor(MechVent, labels = c("No", "Yes")),
+         VentDys = factor(VentDys, labels = c("No", "Yes")))
+
+glm.fit_full5 <- glm(SurvSt2 ~ ., data = na.omit(data_ecmo_survst2), family = "binomial")
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE, include=FALSE}
+  
+t5 <- tbl_regression(glm.fit_full5, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>% bold_p() %>% 
+  bold_labels() #%>% 
+  # as_gt() %>%
+  # gt::tab_header(
+  #   title = gt::md("**Table 14: Full Multiple Logistic Regression for outcome (SurvSt2) with SurgCPB**")
+  # ) %>%
+  # gt::tab_source_note("Data updated July 27, 2023")
+
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE, include=FALSE}
+## 4.6 Full Model for the outcome (SurvSt2) without SurgCPB
+data_ecmo_survst2 <- data_ecmo %>% dplyr::select(Age, Wgt, Lgt, Sex, Dx, SurgAoCT, SurgAAoD, SurgCircArrTot, SurgShuntT, ECA, Hybrid, MechVent, VentDys, Cre, SurvSt2) %>% 
+  mutate(Sex = factor(Sex, labels = c("Male", "Female")),
+         Dx = factor(Dx, labels = c("Aortic and mitral atresia", "Aortic atresia and mitral stenosis",
+                                    "Aortic stenosis and mitral atresia", "Aortic and mitral stenosis",
+                                    "other")),
+         SurgShuntT = factor(SurgShuntT, labels = c("Sano", "BT")),
+         ECA = factor(ECA, labels = c("No", "Yes")),
+         Hybrid = factor(Hybrid, labels = c("No", "Yes")),
+         MechVent = factor(MechVent, labels = c("No", "Yes")),
+         VentDys = factor(VentDys, labels = c("No", "Yes")))
+
+glm.fit_full6 <- glm(SurvSt2 ~ ., data = na.omit(data_ecmo_survst2), family = "binomial")
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE, include=FALSE}
+  
+t6 <- tbl_regression(glm.fit_full6, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>% bold_p() %>% 
+  bold_labels() #%>% 
+  # as_gt() %>%
+  # gt::tab_header(
+  #   title = gt::md("**Table 15: Full Multiple Logistic Regression for outcome (SurvSt2) without SurgCPB**")
+  # ) %>%
+  # gt::tab_source_note("Data updated July 27, 2023")
+
+```
+
+## 4.3 Full Multiple Logistic Regression for outcome (SurvSt2) with and without SurgCPB
+
+```{r, echo=FALSE}
+tbl_merge3 <-
+  tbl_merge(
+    tbls = list(t5, t6),
+    tab_spanner = c("**With SurgCPB**", "**Without SurgCPB**")
+  )%>% as_gt() %>% gt::tab_header(
+
+title = gt::md("**Table 12: Full Model Comparison for outcome (SurvSt2) with and without SurgCPB**"))%>%
+  
+  gt::tab_source_note("Data updated July 27, 2023")
+
+tbl_merge3
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE, include=FALSE}
+## 4.7 Full Model for the outcome (TFHS) with SurgCPB
+data_ecmo_tfhs <- data_ecmo %>% dplyr::select(Age, Wgt, Lgt, Sex, Dx, SurgAoCT, SurgAAoD, SurgCircArrTot, SurgCPB, SurgShuntT, ECA, Hybrid, MechVent, VentDys, Cre, TFHS) %>% 
+  mutate(Sex = factor(Sex, labels = c("Male", "Female")),
+         Dx = factor(Dx, labels = c("Aortic and mitral atresia", "Aortic atresia and mitral stenosis",
+                                    "Aortic stenosis and mitral atresia", "Aortic and mitral stenosis",
+                                    "other")),
+         SurgShuntT = factor(SurgShuntT, labels = c("Sano", "BT")),
+         ECA = factor(ECA, labels = c("No", "Yes")),
+         Hybrid = factor(Hybrid, labels = c("No", "Yes")),
+         MechVent = factor(MechVent, labels = c("No", "Yes")),
+         VentDys = factor(VentDys, labels = c("No", "Yes")))
+
+glm.fit_full7 <- glm(TFHS ~ ., data = na.omit(data_ecmo_tfhs), family = "binomial")
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE, include=FALSE}
+  
+t7 <- tbl_regression(glm.fit_full7, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>% bold_p() %>% 
+  bold_labels() #%>% 
+  # as_gt() %>%
+  # gt::tab_header(
+  #   title = gt::md("**Table 14: Full Multiple Logistic Regression for outcome (TFHS) with SurgCPB**")
+  # ) %>%
+  # gt::tab_source_note("Data updated July 27, 2023")
+
+```
+
+
+```{r, echo=FALSE, warning=FALSE, include=FALSE}
+## 4.8 Full Model for the outcome (TFHS) without SurgCPB
+data_ecmo_tfhs <- data_ecmo %>% dplyr::select(Age, Wgt, Lgt, Sex, Dx, SurgAoCT, SurgAAoD, SurgCircArrTot, SurgShuntT, ECA, Hybrid, MechVent, VentDys, Cre, TFHS) %>% 
+  mutate(Sex = factor(Sex, labels = c("Male", "Female")),
+         Dx = factor(Dx, labels = c("Aortic and mitral atresia", "Aortic atresia and mitral stenosis",
+                                    "Aortic stenosis and mitral atresia", "Aortic and mitral stenosis",
+                                    "other")),
+         SurgShuntT = factor(SurgShuntT, labels = c("Sano", "BT")),
+         ECA = factor(ECA, labels = c("No", "Yes")),
+         Hybrid = factor(Hybrid, labels = c("No", "Yes")),
+         MechVent = factor(MechVent, labels = c("No", "Yes")),
+         VentDys = factor(VentDys, labels = c("No", "Yes")))
+
+glm.fit_full8 <- glm(TFHS ~ ., data = na.omit(data_ecmo_tfhs), family = "binomial")
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, Comment= FALSE, include=FALSE}
+  
+t8<- tbl_regression(glm.fit_full8, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>% bold_p() %>% 
+  bold_labels() #%>% 
+  # as_gt() %>%
+  # gt::tab_header(
+  #   title = gt::md("**Table 15: Full Multiple Logistic Regression for outcome (TFHS) without SurgCPB**")
+  # ) %>%
+  # gt::tab_source_note("Data updated July 27, 2023")
+
+```
+
+## 4.4 Full Multiple Logistic Regression for outcome (TFHS) with and without SurgCPB
+
+```{r, echo=FALSE}
+tbl_merge4 <-
+  tbl_merge(
+    tbls = list(t7, t8),
+    tab_spanner = c("**With SurgCPB**", "**Without SurgCPB**")
+  )%>% as_gt() %>% gt::tab_header(
+
+title = gt::md("**Table 13: Full Model Comparison for outcome (TFHS) with and without SurgCPB**"))%>%
+  
+  gt::tab_source_note("Data updated July 27, 2023")
+
+tbl_merge4
+```
+
+# 5 Supplementary Materials
+
+From the multiple regression summary Table 14, we can see that when we run the logistic regression only for Aortic clamp time (SurgAoCT), the odds ratio (OR) becomes greater than 1 (1.02). Which is changed to 0.97 when we adjust for Cardiopulmonary Bypass time (SurgCPB) on Table 15, which was also significant in our previous multiple logistic regression model for outcome ECMO48.
+
+On the other hand, when we adjust for Sex on Table 16, then the OR for SurgAoCT is still 1.02, so we can say that because we are adjusting for SurgCPB, the OR becomes less than 1 for SurgAoCT.
+
+We can also observe the joint effect of SurgCPB and SurgAoCT on outcome ECMO48 from the scatterplot, for the fixed value of the bypass time, the clamp time is showing less than its expected for the patients who get ECMO within 48 hours.
+
+Here, Table 17 and 18 sows the coefficient of CPBminusAoCT is almost the same in the two models, but the p-value is not. The reason is in the second model, the predictors are correlated more strongly (since one is a part of the other), so there is variance inflation for the standard error.
+
+## 5.1 Multiple Logistic Regression with only SurgAoCT
+
+```{r, echo=FALSE}
+logit2_ecmo48 <- glm(ECMO48 ~ SurgAoCT, family = "binomial", data = na.omit(data_ecmo_ecmo481) )
+
+tbl_regression(logit2_ecmo48, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>% bold_p() %>%
+  bold_labels() %>% 
+  as_gt() %>%
+  gt::tab_header(
+    title = gt::md("**Table 14: Multiple Logistic Regression with only SurgAoCT**")
+  ) %>%
+  gt::tab_source_note("Data updated July 27, 2023")
+```
+
+## 5.2 Multiple Logistic Regression with SurgAoCT, SurgCPB
+
+```{r, echo=FALSE}
+logit1_ecmo48 <- glm(ECMO48 ~ SurgAoCT + SurgCPB, family = "binomial", data = na.omit(data_ecmo_ecmo481) )
+
+tbl_regression(logit1_ecmo48, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>% bold_p() %>%
+  bold_labels() %>% 
+  as_gt() %>%
+  gt::tab_header(
+    title = gt::md("**Table 15: Multiple Logistic Regression with SurgAoCT, SurgCPB**")
+  ) %>%
+  gt::tab_source_note("Data updated July 27, 2023")
+```
+
+## 5.3 Multiple Logistic Regression with Sex, SurgAoCT
+
+```{r, echo=FALSE}
+logit3_ecmo48 <- glm(ECMO48 ~ Sex + SurgAoCT, family = "binomial", data = na.omit(data_ecmo_ecmo481) )
+
+tbl_regression(logit3_ecmo48, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>% bold_p() %>%
+  bold_labels() %>% 
+  as_gt() %>%
+  gt::tab_header(
+    title = gt::md("**Table 16: Multiple Logistic Regression with Sex, SurgAoCT**")
+  ) %>%
+  gt::tab_source_note("Data updated July 27, 2023")
+
+```
+
+
+
+## Figure 5: Scatterplot of SurgCPB and SurgAoCT stratified by ECMO48
+
+
+```{r, echo=FALSE,fig.align='center', fig.cap= "Figure 5:Joint Effect of SurgCPB and SurgAoCT on outcome ECMO48", message=FALSE}
+ggplot(data = na.omit(data_ecmo_ecmo481)) +
+   geom_point(mapping = aes(x =SurgCPB , y = SurgAoCT, color = ECMO48)) + 
+  geom_smooth(mapping = aes(x=SurgCPB, y = SurgAoCT), method=lm, se=FALSE)
+```
+
+
+
+## 5.4 Multiple Logistic Regression with SurgAoCT, CPBminusAoCT
+
+```{r, echo=FALSE}
+data_ecmo_ecmo48 <- data_ecmo %>% dplyr::select(Age, Wgt, Lgt, Sex, Dx, SurgAoCT, SurgAAoD, SurgCircArrTot, SurgCPB, CPBminusAoCT, SurgShuntT, ECA, Hybrid, MechVent, VentDys, Cre, ECMO48)
+
+logit4_ecmo48 <- glm(ECMO48 ~ SurgAoCT + CPBminusAoCT , family = "binomial", data = na.omit(data_ecmo_ecmo48) )
+
+tbl_regression(logit4_ecmo48, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>% bold_p() %>%
+  bold_labels() %>% 
+  as_gt() %>%
+  gt::tab_header(
+    title = gt::md("**Table 17: Multiple Logistic Regression with SurgAoCT and CPBminusAoCT**")
+  ) %>%
+  gt::tab_source_note("Data updated July 27, 2023")
+```
+
+
+
+## 5.5 Multiple Logistic Regression with SurgCPB, CPBminusAoCT
+
+```{r, echo=FALSE}
+logit5_ecmo48 <- glm(ECMO48 ~ SurgCPB + CPBminusAoCT , family = "binomial", data = na.omit(data_ecmo_ecmo48) )
+
+tbl_regression(logit5_ecmo48, exponentiate = TRUE, conf.int = TRUE,  pvalue_fun = NULL) %>% bold_p() %>%
+  bold_labels() %>% 
+  as_gt() %>%
+  gt::tab_header(
+    title = gt::md("**Table 18: Multiple Logistic Regression with SurgCPB, CPBminusAoCT**")
+  ) %>%
+  gt::tab_source_note("Data updated July 27, 2023")
+```
+
